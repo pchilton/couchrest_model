@@ -1,4 +1,14 @@
 # encoding: utf-8
+
+require 'json-diff'
+
+# class ComplexChange
+#     include CouchRest::Model::Embeddable
+#     property :changed_at, Time
+#     property :rfc6902, [Hash]
+#     property :revision, String
+# end
+
 module CouchRest
   module Model
     module Properties
@@ -53,6 +63,14 @@ module CouchRest
         directly_set_read_only_attributes(attrs)
         directly_set_attributes(attrs, true)
         self
+      end
+
+      def save_timestamp
+        @_save_timestamp_now ||= Time.now
+      end
+
+      def clear_save_timestamp
+        @_save_timestamp_now = nil
       end
 
       protected
@@ -185,10 +203,44 @@ module CouchRest
           property(:created_at, Time, :read_only => true, :protected => true, :auto_validation => false)
 
           set_callback :save, :before do |object|
-            write_attribute('updated_at', Time.now)
-            write_attribute('created_at', Time.now) if object.new?
+            ts_now = save_timestamp
+            write_attribute('updated_at', ts_now)
+            write_attribute('created_at', ts_now) if object.new?
+          end
+
+          set_callback :save, :after do |object|
+            clear_save_timestamp
           end
         end
+
+        def history!
+            property(:history, [Hash], :read_only => true, :protected => true, :auto_validation => false)
+
+            set_callback :save, :before do |object|
+              ts_now = save_timestamp
+              revision = object.rev
+
+              t_ocd = original_change_data.nil? ? {} : original_change_data
+              t_content = t_ocd.inject({}) {|h, (k,v)| h[k] = v.respond_to?(:as_couch_json) ? v.as_couch_json : v; h}
+              t_before = remove_protected_attributes(t_content)
+              t_after = remove_protected_attributes(as_couch_json)
+
+              # note: writing change history to go backwards in time
+              json_changes = JsonDiff.diff(t_after, t_before)
+
+              if json_changes.length > 0
+                change_attribute = read_attribute('history')
+                change_item = { changed_at: ts_now, rfc6902: json_changes, revision: revision }
+                change_attribute.unshift(change_item)
+                # change_attribute.unshift ComplexChange.new(changed_at: t_key, rfc6902: json_changes, revision: revision)
+                write_attribute('history', change_attribute)
+              end
+            end
+
+            set_callback :save, :after do |object|
+              clear_save_timestamp
+            end
+          end
 
         protected
 
