@@ -31,9 +31,8 @@ module CouchRest
         # 
         # === Parameters
         # id<String, Integer>:: Document ID
-        def get(id, db_name = database.name)
-            # TODO: check against prepared name
-            get!(id, db_name)
+        def get(id)
+          get!(id)
         rescue CouchRest::Model::DocumentNotFound
           nil
         end
@@ -49,15 +48,8 @@ module CouchRest
         # 
         # === Parameters
         # id<String, Integer>:: Document ID
-        def get!(id, db_name = database.name)
-            # TODO: check against prepared name
-            if db_name == database.name
-                fetch_and_build_from_database(id, database)
-            else
-                # TODO: run db_name through prepared name
-                temp_db = prepare_database(db_name)
-                fetch_and_build_from_database(id, temp_db)
-            end
+        def get!(id)
+          fetch_and_build_from_database(id, database)
         end
         alias :find! :get!
 
