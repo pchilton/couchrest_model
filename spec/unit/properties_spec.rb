@@ -65,6 +65,9 @@ describe CouchRest::Model::Properties do
       expect(@card.updated_at).not_to be_nil
     end
 
+    # TODO: anonymous access CouchDB for testing
+    # TODO: history! tests
+
     describe "#as_couch_json" do
 
       it "should provide a simple hash from model" do

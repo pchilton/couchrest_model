@@ -2,13 +2,6 @@
 
 require 'json-diff'
 
-# class ComplexChange
-#     include CouchRest::Model::Embeddable
-#     property :changed_at, Time
-#     property :rfc6902, [Hash]
-#     property :revision, String
-# end
-
 module CouchRest
   module Model
     module Properties
@@ -213,27 +206,25 @@ module CouchRest
           end
         end
 
+        # Automatically set <tt>history</tt> field on the document whenever saving occurs.
+        #
+        # Change history goes backwards in time from the current document, via RFC6902
         def history!
             property(:history, [Hash], :read_only => true, :protected => true, :auto_validation => false)
 
             set_callback :save, :before do |object|
-              ts_now = save_timestamp
-              revision = object.rev
+              ts_now    = save_timestamp
+              revision  = object.rev
+              ocd       = original_change_data.nil? ? {} : original_change_data
+              before    = ocd.inject({}) {|h, (k,v)| h[k] = v.respond_to?(:as_couch_json) ? v.as_couch_json : v; h}
+              before    = remove_protected_attributes(before)
+              after     = remove_protected_attributes(as_couch_json)
+              json_diff = JsonDiff.diff(after, before)
 
-              t_ocd = original_change_data.nil? ? {} : original_change_data
-              t_content = t_ocd.inject({}) {|h, (k,v)| h[k] = v.respond_to?(:as_couch_json) ? v.as_couch_json : v; h}
-              t_before = remove_protected_attributes(t_content)
-              t_after = remove_protected_attributes(as_couch_json)
-
-              # note: writing change history to go backwards in time
-              json_changes = JsonDiff.diff(t_after, t_before)
-
-              if json_changes.length > 0
-                change_attribute = read_attribute('history')
-                change_item = { changed_at: ts_now, rfc6902: json_changes, revision: revision }
-                change_attribute.unshift(change_item)
-                # change_attribute.unshift ComplexChange.new(changed_at: t_key, rfc6902: json_changes, revision: revision)
-                write_attribute('history', change_attribute)
+              unless json_diff.empty?
+                history = read_attribute('history')
+                history.unshift({ changed_at: ts_now, rfc6902: json_diff, revision: revision })
+                write_attribute('history', history)
               end
             end
 
