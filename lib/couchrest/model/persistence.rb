@@ -11,9 +11,7 @@ module CouchRest
         run_callbacks :create do
           run_callbacks :save do
             set_unique_id if new? && respond_to?(:set_unique_id)
-            # TODO: run db name through prepare_database_name
-            temp_db = (database.is_a? String) ? self.server.database!(database) : database
-            result = temp_db.save_doc(self)
+            result = database.save_doc(self)
             ret = (result["ok"] == true) ? self : false
             clear_changes_information if ret
             ret
@@ -36,9 +34,7 @@ module CouchRest
         return true unless changed?
         run_callbacks :update do
           run_callbacks :save do
-            # TODO: run db name through prepare_database_name
-            temp_db = (database.is_a? String) ? self.server.database!(database) : database
-            result = temp_db.save_doc(self)
+            result = database.save_doc(self)
             ret = result["ok"] == true
             clear_changes_information if ret
             ret
@@ -61,9 +57,7 @@ module CouchRest
       # Deletes the document from the database. Runs the :destroy callbacks.
       def destroy
         run_callbacks :destroy do
-          # TODO: run db name through prepare_database_name
-          temp_db = (database.is_a? String) ? self.server.database!(database) : database
-          result = temp_db.delete_doc(self)
+          result = database.delete_doc(self)
           if result['ok']
             @_destroyed = true
             self.freeze
@@ -98,10 +92,8 @@ module CouchRest
       #
       # Returns self.
       def reload
-        # TODO: run db name through prepare_database_name
-        temp_db = (database.is_a? String) ? self.server.database!(database) : database
         write_attributes_for_initialization(
-            temp_db.get!(id), :write_all_attributes => true
+          database.get!(id), :write_all_attributes => true
         )
         self
       rescue CouchRest::NotFound
