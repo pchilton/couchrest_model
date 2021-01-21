@@ -223,7 +223,7 @@ module CouchRest
 
               unless json_diff.empty?
                 history = read_attribute('history')
-                history.unshift({ changed_at: ts_now, rfc6902: json_diff, revision: revision })
+                history.unshift({ changed_at: ts_now, rfc6902: json_diff, revision: revision }.stringify_keys)
                 write_attribute('history', history)
               end
             end
