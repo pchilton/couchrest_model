@@ -206,6 +206,24 @@ module CouchRest
           end
         end
 
+        # Automatically set <tt>updatedAt</tt> and <tt>createdAt</tt> fields
+        # on the document whenever saving occurs.
+        #
+        # These properties are casted as Time objects, so they should always
+        # be set to UTC.
+        def timeStamps!
+            property(:updatedAt, Time, :read_only => true, :protected => true, :auto_validation => false)
+            property(:createdAt, Time, :read_only => true, :protected => true, :auto_validation => false)
+            set_callback :save, :before do |object|
+              ts_now = save_timestamp
+              write_attribute('updatedAt', ts_now)
+              write_attribute('createdAt', ts_now) if object.new?
+            end
+            set_callback :save, :after do |object|
+              clear_save_timestamp
+            end
+          end
+
         # Automatically set <tt>history</tt> field on the document whenever saving occurs.
         #
         # Change history goes backwards in time from the current document, via RFC6902
